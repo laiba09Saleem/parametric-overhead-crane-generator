@@ -1,62 +1,122 @@
+/* ================================================================
+   DESIGN TOKENS
+   ================================================================ */
 :root {
-  --bg: #f4f6f8;
-  --surface: #ffffff;
-  --border: #d5dce4;
-  --text: #1e293b;
-  --text-muted: #526071;
-  --primary: #1d4ed8;
-  --primary-hover: #1e40af;
-  --danger: #b91c1c;
+  /* Surfaces */
+  --bg:             #eef0f4;
+  --surface:        #ffffff;
+  --surface-raised: #f5f7fa;
+  --surface-panel:  #fafbfd;
 
-  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  /* Borders */
+  --border:         #dde1e9;
+  --border-strong:  #c4cad6;
+  --border-focus:   #3b82f6;
+
+  /* Text */
+  --text:           #0d1117;
+  --text-muted:     #5a6478;
+  --text-subtle:    #8b95a8;
+
+  /* Primary – engineering blue */
+  --primary:        #1d6fe8;
+  --primary-dark:   #1558c0;
+  --primary-hover:  #1a63d4;
+  --primary-light:  #edf4ff;
+  --primary-border: #b3d0ff;
+
+  /* Accent – amber for engineering warnings */
+  --accent:         #d97706;
+  --accent-bg:      #fffbeb;
+  --accent-border:  #fcd34d;
+
+  /* Success */
+  --success:        #15803d;
+  --success-bg:     #f0fdf4;
+  --success-border: #86efac;
+
+  /* Danger */
+  --danger:         #c41d1d;
+  --danger-hover:   #a71818;
+  --danger-bg:      #fff5f5;
+  --danger-border:  #fca5a5;
+
+  /* Shadows */
+  --shadow-xs:  0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-sm:  0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow:     0 4px 8px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.06);
+  --shadow-md:  0 8px 20px rgb(0 0 0 / 0.10), 0 2px 6px rgb(0 0 0 / 0.06);
+  --shadow-lg:  0 16px 40px rgb(0 0 0 / 0.12), 0 4px 10px rgb(0 0 0 / 0.08);
+
+  /* Border radius */
+  --radius-xs:  3px;
+  --radius-sm:  5px;
+  --radius:     8px;
+  --radius-lg:  12px;
+  --radius-xl:  16px;
+
+  /* Typography */
+  --sans: 'Inter', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  --mono: 'JetBrains Mono', 'Cascadia Code', ui-monospace, Consolas, monospace;
+
+  /* Layout */
+  --header-h: 60px;
+  --panel-padding: 1.25rem 1.5rem;
 }
 
+/* ================================================================
+   RESET & BASE
+   ================================================================ */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-html,
-body,
-#root {
-  min-height: 100%;
+html {
+  height: 100%;
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  margin: 0;
+  min-height: 100%;
   font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 0.9375rem;
+  line-height: 1.6;
   color: var(--text);
   background-color: var(--bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1,
-h2,
-h3 {
-  margin: 0;
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4 {
   font-weight: 600;
+  line-height: 1.25;
   color: var(--text);
 }
 
-p {
-  margin: 0;
-}
+p { line-height: 1.6; }
 
 a {
   color: var(--primary);
   text-decoration: none;
+  transition: color 0.15s;
 }
+a:hover { color: var(--primary-dark); }
 
-a:hover {
-  text-decoration: underline;
-}
-
-button,
-input {
+button, input, select, textarea {
   font-family: inherit;
+  font-size: inherit;
 }
+
+img, svg { display: block; }

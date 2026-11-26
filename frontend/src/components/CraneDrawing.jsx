@@ -1,36 +1,70 @@
 import { useState } from 'react'
 import DimensionLine from './DimensionLine.jsx'
 
-// --- Component-specific fill/stroke colours ---
+/* ================================================================
+   Component visual styles — engineering drawing colours
+   ================================================================ */
 const STYLE = {
-  structure:   { fill: '#334155', stroke: '#1e293b', strokeWidth: 1.2 }, // end trucks + girder
-  rail:        { fill: '#64748b', stroke: '#475569', strokeWidth: 1 },   // runway rails
-  equipment:   { fill: '#1d4ed8', stroke: '#1e40af', strokeWidth: 1.2 }, // trolley + hoist
-  hookBody:    { fill: 'none',    stroke: '#1d4ed8', strokeWidth: 2 },   // hook circle
-  rope:        { fill: 'none',    stroke: '#475569', strokeWidth: 1, strokeDasharray: '4,3' },
-  railLine:    { fill: 'none',    stroke: '#94a3b8', strokeWidth: 1.5,  strokeDasharray: '8,4' },
-  dimension:   { color: '#64748b' },
+  structure: {
+    fill: '#1e3a5f',
+    stroke: '#0a1628',
+    strokeWidth: 1.5,
+  },
+  equipment: {
+    fill: '#2563eb',
+    stroke: '#1d4ed8',
+    strokeWidth: 1.5,
+  },
+  rail: {
+    fill: '#374151',
+    stroke: '#111827',
+    strokeWidth: 1,
+  },
+  rope: {
+    stroke: '#6b7280',
+    strokeWidth: 1.5,
+    strokeDasharray: '4 3',
+  },
+  hookBody: {
+    fill: '#374151',
+    stroke: '#111827',
+    strokeWidth: 1.5,
+  },
+  railLine: {
+    stroke: '#3b82f6',
+    strokeWidth: 1,
+    strokeDasharray: '8 4',
+  },
+  dimension: {
+    color: '#dc2626',
+  },
 }
 
-/** Render one front-view component object by inspecting its shape. */
+/** Render one front-view component object by inspecting its shape fields. */
 function FrontComponent({ name, shape }) {
   if (shape.cx !== undefined) {
-    // Circle: hook
-    return <circle cx={shape.cx} cy={shape.cy} r={shape.r} {...STYLE.hookBody} />
+    // Circle — hook body
+    return (
+      <circle
+        cx={shape.cx} cy={shape.cy} r={shape.r}
+        {...STYLE.hookBody}
+      />
+    )
   }
   if (shape.x1 !== undefined) {
-    // Line: rope
+    // Line — hoist rope
     return (
       <line
-        x1={shape.x1} y1={shape.y1} x2={shape.x2} y2={shape.y2}
+        x1={shape.x1} y1={shape.y1}
+        x2={shape.x2} y2={shape.y2}
         {...STYLE.rope}
       />
     )
   }
-  // Rect
+  // Rect — girder, end trucks, rails, trolley, hoist body
   const style =
     name === 'left_rail' || name === 'right_rail' ? STYLE.rail
-    : name === 'trolley' || name === 'hoist'       ? STYLE.equipment
+    : name === 'trolley'  || name === 'hoist'      ? STYLE.equipment
     : STYLE.structure
   return (
     <rect
@@ -42,20 +76,20 @@ function FrontComponent({ name, shape }) {
   )
 }
 
-/** Render one top-view component object by inspecting its shape. */
+/** Render one top-view component object by inspecting its shape fields. */
 function TopComponent({ name, shape }) {
   if (shape.x1 !== undefined) {
-    // Dashed rail centreline
+    // Line — dashed rail centreline
     return (
       <line
-        x1={shape.x1} y1={shape.y1} x2={shape.x2} y2={shape.y2}
+        x1={shape.x1} y1={shape.y1}
+        x2={shape.x2} y2={shape.y2}
         {...STYLE.railLine}
       />
     )
   }
-  // Rect
-  const style =
-    name === 'trolley' ? STYLE.equipment : STYLE.structure
+  // Rect — girder, end trucks, trolley
+  const style = name === 'trolley' ? STYLE.equipment : STYLE.structure
   return (
     <rect
       x={shape.x} y={shape.y}
@@ -74,17 +108,24 @@ function CraneView({ view, renderComponent }) {
     <svg
       viewBox={`0 0 ${canvas_width} ${canvas_height}`}
       width="100%"
-      style={{ display: 'block', maxWidth: canvas_width, border: '1px solid var(--border)', borderRadius: 6, background: '#f8fafc' }}
+      style={{ display: 'block', background: 'transparent' }}
       aria-label="Crane drawing view"
     >
-      {/* Components */}
+      {/* White semi-transparent surface over the grid background */}
+      <rect
+        x={0} y={0}
+        width={canvas_width} height={canvas_height}
+        fill="rgba(255,255,255,0.72)"
+      />
+
+      {/* Structural and equipment components */}
       <g>
         {Object.entries(components).map(([name, shape]) =>
           renderComponent(name, shape)
         )}
       </g>
 
-      {/* Dimension lines (coordinates are pre-computed by backend) */}
+      {/* Dimension lines — coordinates pre-computed by backend; offset=0 */}
       <g style={{ color: STYLE.dimension.color }}>
         {dimensions.map((dim, i) => (
           <DimensionLine
@@ -98,18 +139,19 @@ function CraneView({ view, renderComponent }) {
         ))}
       </g>
 
-      {/* Info labels (capacity, lift height) */}
+      {/* Information labels (capacity, lift height) — illustrative only */}
       {info_labels && (
         <g>
           {info_labels.map((lbl, i) => (
             <text
               key={i}
               x={lbl.x} y={lbl.y}
-              fontSize="12"
+              fontSize="11"
               textAnchor="middle"
               dominantBaseline="middle"
               fill="#64748b"
               fontFamily="system-ui, sans-serif"
+              fontStyle="italic"
             >
               {lbl.label}
             </text>
@@ -126,65 +168,90 @@ function CraneDrawing({ geometry }) {
 
   if (!geometry) {
     return (
-      <div className="empty-state">
-        <p>No drawing to display yet.</p>
-        <p className="helper-text">Enter crane parameters and click <strong>Generate Drawing</strong>.</p>
+      <div className="drawing-panel-inner">
+        <div className="empty-state">
+          <div className="empty-state-icon">🏗</div>
+          <div className="empty-state-title">No drawing generated yet</div>
+          <p className="empty-state-hint">
+            Enter crane parameters in the left panel and click{' '}
+            <strong>Generate Drawing</strong> to produce a dimensioned 2D drawing.
+          </p>
+        </div>
       </div>
     )
   }
 
-  const { front_view, top_view } = geometry
+  const { front_view, top_view, common_scale_px_per_m } = geometry
+
+  const isFront = activeView === 'front'
+  const activeData = isFront ? front_view : top_view
+  const viewLabel = isFront ? 'FRONT ELEVATION' : 'PLAN VIEW'
+  const projection = isFront
+    ? 'Looking along runway direction'
+    : 'Looking straight down from above'
 
   return (
-    <div>
+    <div className="drawing-panel-inner">
+
       {/* View selector tabs */}
       <div className="view-tabs">
         <button
           className={`btn ${activeView === 'front' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveView('front')}
         >
-          Front View
+          Front Elevation
         </button>
         <button
           className={`btn ${activeView === 'top' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveView('top')}
         >
-          Top View
+          Plan View
         </button>
       </div>
 
-      {activeView === 'front' && (
-        <div>
-          <p className="helper-text" style={{ marginBottom: '0.5rem' }}>
-            Elevation — looking along runway direction
-          </p>
+      {/* View caption */}
+      <div className="drawing-caption">{projection}</div>
+
+      {/* CAD drawing frame with grid background (from CSS) */}
+      <div className="drawing-frame">
+        <div className="drawing-svg-wrap">
           <CraneView
-            view={front_view}
-            renderComponent={(name, shape) => (
-              <FrontComponent key={name} name={name} shape={shape} />
-            )}
+            view={activeData}
+            renderComponent={(name, shape) =>
+              isFront
+                ? <FrontComponent key={name} name={name} shape={shape} />
+                : <TopComponent key={name} name={name} shape={shape} />
+            }
           />
         </div>
-      )}
+      </div>
 
-      {activeView === 'top' && (
-        <div>
-          <p className="helper-text" style={{ marginBottom: '0.5rem' }}>
-            Plan — looking straight down from above
-          </p>
-          <CraneView
-            view={top_view}
-            renderComponent={(name, shape) => (
-              <TopComponent key={name} name={name} shape={shape} />
-            )}
-          />
+      {/* Engineering title block */}
+      <div className="drawing-title-block">
+        <div className="title-block-cell">
+          <span className="title-block-label">Project</span>
+          <span className="title-block-value">Parametric EOT Crane Generator</span>
         </div>
-      )}
+        <div className="title-block-cell">
+          <span className="title-block-label">View</span>
+          <span className="title-block-value">{viewLabel}</span>
+        </div>
+        <div className="title-block-cell">
+          <span className="title-block-label">Scale (px/m)</span>
+          <span className="title-block-value">
+            {common_scale_px_per_m != null
+              ? common_scale_px_per_m.toFixed(1)
+              : '—'}
+          </span>
+        </div>
+      </div>
 
-      {/* Scale reference */}
-      <p className="helper-text" style={{ marginTop: '0.5rem' }}>
-        Scale: {geometry.common_scale_px_per_m.toFixed(2)} px/m
-      </p>
+      {/* Disclaimer meta row */}
+      <div className="drawing-meta">
+        <span>Top-Running Single-Girder EOT · Under-Running Trolley Hoist</span>
+        <span>🔶 Geometric estimate — not for structural use</span>
+      </div>
+
     </div>
   )
 }

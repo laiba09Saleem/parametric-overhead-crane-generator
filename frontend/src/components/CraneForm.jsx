@@ -17,7 +17,7 @@ const FIELDS = [
     min: 3,
     max: 30,
     step: 0.5,
-    hint: 'Distance between runway rail centrelines.',
+    hint: '3–30 m · Rail centreline to centreline',
   },
   {
     key: 'capacity_t',
@@ -26,7 +26,7 @@ const FIELDS = [
     min: 0.5,
     max: 20,
     step: 0.5,
-    hint: 'Shown as a label on the drawing only. Does not size components.',
+    hint: '0.5–20 t · Label only — does not resize components',
   },
   {
     key: 'girder_height',
@@ -35,7 +35,7 @@ const FIELDS = [
     min: 0.2,
     max: 2,
     step: 0.05,
-    hint: 'Vertical height of the main bridge girder.',
+    hint: '0.2–2 m · Vertical depth of bridge girder',
   },
   {
     key: 'end_truck_length',
@@ -44,16 +44,16 @@ const FIELDS = [
     min: 0.5,
     max: 3,
     step: 0.1,
-    hint: 'End truck dimension along the runway direction.',
+    hint: '0.5–3 m · Along runway direction',
   },
   {
     key: 'lift_height',
-    label: 'Maximum Lift Height',
+    label: 'Max Lift Height',
     unit: 'm',
     min: 1,
     max: 15,
     step: 0.5,
-    hint: 'Maximum hook travel. Shown as an input label only; not drawn geometrically.',
+    hint: '1–15 m · Hook travel; shown as label only',
   },
 ]
 
@@ -63,15 +63,15 @@ function validate(values) {
   if (!values.name || values.name.trim().length === 0) {
     errors.name = 'Design name is required.'
   } else if (values.name.trim().length > 100) {
-    errors.name = 'Design name must be 100 characters or fewer.'
+    errors.name = 'Must be 100 characters or fewer.'
   }
 
-  FIELDS.forEach(({ key, label, min, max }) => {
+  FIELDS.forEach(({ key, min, max }) => {
     const val = parseFloat(values[key])
     if (isNaN(val)) {
-      errors[key] = `${label} must be a number.`
+      errors[key] = `Enter a valid number.`
     } else if (val < min || val > max) {
-      errors[key] = `${label} must be between ${min} and ${max}.`
+      errors[key] = `${min}–${max}`
     }
   })
 
@@ -94,7 +94,7 @@ function CraneForm({ onPreview, onSave, loading = false, initialValues }) {
   const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({})
 
-  // Repopulate form when a saved design is opened for editing
+  
   useEffect(() => {
     if (initialValues) {
       setValues({ ...DEFAULTS, ...initialValues })
@@ -112,12 +112,11 @@ function CraneForm({ onPreview, onSave, loading = false, initialValues }) {
   function handleBlur(e) {
     const { name } = e.target
     setTouched((prev) => ({ ...prev, [name]: true }))
-    const errs = validate(values)
-    setErrors(errs)
+    setErrors(validate(values))
   }
 
   function handleSubmit(callback) {
-    // Mark all fields as touched to show every error
+    // Mark all fields touched so every error becomes visible
     const allTouched = Object.fromEntries(
       ['name', ...FIELDS.map((f) => f.key)].map((k) => [k, true])
     )
@@ -134,27 +133,26 @@ function CraneForm({ onPreview, onSave, loading = false, initialValues }) {
   const disabled = loading
 
   return (
-    <form
-      onSubmit={(e) => e.preventDefault()}
-      noValidate
-      aria-label="Crane parameters form"
-    >
+    <form onSubmit={(e) => e.preventDefault()} noValidate aria-label="Crane parameters form">
       <div className="form-stack">
 
-        {/* Disclaimer */}
-        <p className="helper-text">
-          Input ranges are application limits for the 2D drawing generator only —
-          not structural design or safety standards.
-        </p>
+        {/* Disclaimer strip */}
+        <div className="form-disclaimer">
+          <span>⚠</span>
+          <span>
+            Parameter ranges are drawing-generator limits only — not structural
+            or safety standards.
+          </span>
+        </div>
 
-        {/* Design Name */}
-        <div className="form-group">
+        {/* Design Name — full width */}
+        <div className={`form-group full-width${errors.name && touched.name ? ' has-error' : ''}`}>
           <label className="form-label" htmlFor="field-name">
             Design Name
           </label>
           <input
             id="field-name"
-            className="form-input"
+            className={`form-input${errors.name && touched.name ? ' error' : ''}`}
             type="text"
             name="name"
             value={values.name}
@@ -162,72 +160,80 @@ function CraneForm({ onPreview, onSave, loading = false, initialValues }) {
             onBlur={handleBlur}
             maxLength={100}
             disabled={disabled}
-            aria-describedby={errors.name && touched.name ? 'err-name' : undefined}
+            autoComplete="off"
           />
           {errors.name && touched.name && (
-            <span id="err-name" className="helper-text" style={{ color: 'var(--danger)' }}>
-              {errors.name}
-            </span>
+            <span className="field-error">{errors.name}</span>
           )}
         </div>
 
         {/* Numeric Fields */}
-        {FIELDS.map(({ key, label, unit, min, max, step, hint }) => (
-          <div className="form-group" key={key}>
-            <label className="form-label" htmlFor={`field-${key}`}>
-              {label}&nbsp;
-              <span className="helper-text">({unit})</span>
-            </label>
-            <input
-              id={`field-${key}`}
-              className="form-input"
-              type="number"
-              name={key}
-              value={values[key]}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              min={min}
-              max={max}
-              step={step}
-              disabled={disabled}
-              aria-describedby={
-                errors[key] && touched[key]
-                  ? `err-${key}`
-                  : `hint-${key}`
-              }
-            />
-            {errors[key] && touched[key] ? (
-              <span id={`err-${key}`} className="helper-text" style={{ color: 'var(--danger)' }}>
-                {errors[key]}
-              </span>
-            ) : (
-              <span id={`hint-${key}`} className="helper-text">
-                {hint} ({min}–{max} {unit})
-              </span>
-            )}
-          </div>
-        ))}
+        {FIELDS.map(({ key, label, unit, min, max, step, hint }) => {
+          const hasErr = errors[key] && touched[key]
+          return (
+            <div
+              className={`form-group${hasErr ? ' has-error' : ''}`}
+              key={key}
+            >
+              <label className="form-label" htmlFor={`field-${key}`}>
+                {label}
+              </label>
 
-        {/* Action Buttons */}
-        <div className="form-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => handleSubmit(onPreview)}
-            disabled={disabled}
-          >
-            {loading ? 'Generating…' : 'Generate Drawing'}
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => handleSubmit(onSave)}
-            disabled={disabled}
-          >
-            {loading ? 'Saving…' : 'Save Design'}
-          </button>
-        </div>
+              <input
+                id={`field-${key}`}
+                className={`form-input${hasErr ? ' error' : ''}`}
+                type="number"
+                name={key}
+                value={values[key]}
+                min={min}
+                max={max}
+                step={step}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                disabled={disabled}
+              />
 
+              {/* Show actual validation message for NaN; range message otherwise */}
+              {hasErr ? (
+                <span className="field-error">
+                  {errors[key] === 'Enter a valid number.'
+                    ? errors[key]
+                    : `Out of range (${min}–${max} ${unit})`}
+                </span>
+              ) : (
+                <div className="field-hint-wrap">
+                  <span className="field-hint">
+                    <span className="form-unit">{unit}</span>&nbsp; {hint}
+                  </span>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Action buttons — labels match the helper text shown in DesignsPage */}
+      <div className="form-actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => handleSubmit(onPreview)}
+          disabled={disabled}
+          title="Generate a 2D drawing preview without saving"
+        >
+          {loading ? <span className="btn-spinner" /> : '⚙'}
+          {loading ? 'Working…' : 'Generate Drawing'}
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => handleSubmit(onSave)}
+          disabled={disabled}
+          title="Save this design to the database"
+        >
+           Save Design
+        </button>
       </div>
     </form>
   )
