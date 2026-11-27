@@ -1,5 +1,3 @@
-# DECISIONS.md
-
 ## 1. Who is the user, and what do they need?
 
 The primary users are the engineering team because they need to enter basic crane parameters such as span, capacity, girder height, end truck length, and lift height. The application automatically generates a 2D drawing based on these parameters.
