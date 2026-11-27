@@ -1,65 +1,60 @@
 # AI Development Log (`AI_LOG.md`)
 
-This log documents key AI-assisted development interactions during the creation of the **Parametric Overhead Crane Drawing Generator** for **Moderen Crane Co.**, focusing on issues caught through human review, testing, and verification against the codebase.
+A brief log of 5 key cases where I reviewed, caught issues in, and corrected AI-generated output while building the **Parametric Overhead Crane Drawing Generator** for **Moderen Crane Co.**
 
 ---
 
-## 1. Adding Finite-Number Validation (`NaN` / `Infinity`) to `CraneParameters`
+## 1. Missing `NaN` / `Infinity` Validation (`backend/models/schemas.py`)
 
-- **Task:** Implementing `backend/models/schemas.py` (Step 1) to validate incoming crane parameters with Pydantic v2.
-- **Initial AI contribution:** Generated `CraneParameters` with `Field(..., ge=..., le=...)` numeric bounds and a `@field_validator("name")` to reject empty or whitespace-only design names.
-- **Issue identified:** In Python, `float("nan")` and `float("inf")` are valid `float` values that bypass standard `ge`/`le` range checks unless explicitly disallowed. If passed through the API, non-finite numbers could propagate into `geometry_engine.py` arithmetic and produce broken SVG coordinates or invalid JSON.
-- **Human review:** During review of Step 1 (`schemas.py`), the developer identified the missing finite-number guard and requested explicit `NaN`/`Infinity` rejection plus a dedicated `NaN` test case.
-- **Correction:** Imported `ConfigDict` from `pydantic` and added `model_config = ConfigDict(allow_inf_nan=False)` to `CraneParameters`, along with a Python CLI test passing `span=float('nan')`. Verified that valid inputs were accepted, while out-of-range values and `NaN` were rejected. The Pydantic configuration also disallows Infinity values.
-- **Learning:** Standard numeric range validators (`ge`/`le`) are not sufficient on their own for Python `float` inputs; API boundaries must explicitly reject non-finite values.
-
----
-
-## 2. Decoupling `lift_height` from Physical Hook SVG Coordinates
-
-- **Task:** Designing the Front Elevation geometry and labels for `lift_height` (maximum hook travel) in the backend implementation plan and `backend/services/geometry_engine.py`.
-- **Initial AI contribution:** Initially mapped `lift_height` directly to the vertical drop from `girder_bottom_y` to `hook_cy` (`lift_height × SCALE`) with a dimension line labelled `Max Lift Height (Schematic)`. Later, in the initial Step 3 `geometry_engine.py` draft, used the info label `Maximum Lift Height: X.X m`.
-- **Issue identified:** Maximum hook travel (`lift_height`) is not necessarily the same engineering measurement as the girder-to-hook vertical distance. Drawing a dimension line or positioning the hook from `lift_height` could falsely imply a verified physical installation clearance, and the shorter label did not explicitly state that the value is not represented geometrically.
-- **Human review:** During architecture plan review and Step 3 code review, the developer required `lift_height` to be decoupled from hook coordinates and requested an explicit test proving `lift_height` does not alter `common_scale_px_per_m` or hook coordinates.
-- **Correction:** Introduced a separate drawing-only visual constant (`EST_ILLUSTRATIVE_ROPE_LENGTH_M = 1.50`) to place the hook schematically, and updated the Front View info label to `Maximum Lift Height: {params.lift_height:.1f} m (input only; not shown geometrically)`. Verified with a two-case test (`lift_height=2.0` vs `15.0`) confirming identical scale and hook coordinates.
-- **Learning:** AI can conflate user-entered engineering parameters with visual layout coordinates; domain review is necessary to keep schematic assumptions honest and clearly separated from physical dimensions.
+- **Task:** Define the Pydantic v2 input schema (`CraneParameters`) for crane parameters.
+- **What AI generated:** Created `CraneParameters` with `ge`/`le` bounds and a blank-name validator.
+- **Issue I found:** Python's `float("nan")` and `float("inf")` bypass normal `ge`/`le` checks unless explicitly blocked, which could pass non-finite values into the geometry engine.
+- **How I reviewed it:** Checked `schemas.py` during Step 1 review and asked for `ConfigDict(allow_inf_nan=False)` plus a `NaN` test case.
+- **Fix applied:** Added `model_config = ConfigDict(allow_inf_nan=False)` to `CraneParameters`. Verified that valid inputs were accepted, while out-of-range values and `NaN` were rejected. The Pydantic configuration also disallows Infinity values.
+- **Takeaway:** Range checks (`ge`/`le`) alone do not block non-finite floats in Python; schemas must explicitly reject them.
 
 ---
 
-## 3. Enforcing a Common Orthographic Scale and Full-Precision Scale Reporting
+## 2. Decoupling `lift_height` from Hook Coordinates (`backend/services/geometry_engine.py`)
 
-- **Task:** Ensuring all permitted parameter combinations fit within fixed SVG canvases while keeping Front Elevation and Top (Plan) View proportions consistent (`backend-implementation-plan.md` and `backend/services/geometry_engine.py`).
-- **Initial AI contribution:** First proposed independent fit-to-canvas scales (`scale_front` and `scale_top`), which rendered the same crane at different scales in the two views (e.g., `86.15 px/m` vs `150.00 px/m` at `span = 3.0 m`). Later, in the initial Step 3 code, rounded `common_scale_px_per_m` to 2 decimal places in the response while using the unrounded float for coordinate math.
-- **Issue identified:** Independent scales broke orthographic consistency between Front and Top Views, and rounding `common_scale_px_per_m` created a mismatch between the reported scale and the actual scale used to compute SVG coordinates.
-- **Human review:** Caught both issues during plan review and Step 3 code review, requesting a single shared minimum scale and unrounded scale reporting.
-- **Correction:** Replaced the separate scales with `common_scale = min(front_width_scale, front_height_scale, top_width_scale, top_height_scale)` applied to both views, and returned the full-precision `scale` in `common_scale_px_per_m` while keeping `_r(value)` (`round(value, 1)`) for SVG pixel coordinates. Verified across standard (`10 m`), minimum (`3 m`), and maximum (`30 m`) test cases.
-- **Learning:** Multi-view engineering drawings require a shared scale constraint, and API metadata should report the exact precision used in underlying calculations.
-
----
-
-## 4. Replacing `Promise.all()` with Sequential Save/Refresh Error Handling
-
-- **Task:** Implementing `handleSave` in `frontend/src/pages/HomePage.jsx` and `handleUpdate` in `frontend/src/pages/DesignsPage.jsx` to persist a design and refresh the drawing and list.
-- **Initial AI contribution:** In the initial `HomePage.jsx` implementation, used `Promise.all([createDesign(data), previewDesign(data)])` inside a single `try/catch`. In `DesignsPage.jsx`, an intermediate `handleUpdate` revision used two separate `catch` blocks calling `setError` and moved `setLoading(false)` outside a `finally` block.
-- **Issue identified:** With `Promise.all()`, if `createDesign()` succeeded but `previewDesign()` failed, `Promise.all()` rejected as a whole—causing the UI to show a failure message even though the record was saved, which could prompt the user to resubmit and create duplicate records. In `DesignsPage.jsx`, separate `setError()` calls could overwrite an earlier refresh error, and omitting `finally` risked leaving `loading` stuck at `true` on an early return or unexpected error.
-- **Human review:** During F11 and F12 reviews, the developer rejected `Promise.all()` and required sequential execution, preserved save/update confirmation messages, combined refresh error reporting, and an outer `try/finally`.
-- **Correction:**
-  - In `HomePage.jsx` (`handleSave`), executed `createDesign(data)` first (returning early on failure after resetting `loading`), immediately set the success message, and then ran `previewDesign(data)` in a separate `try/catch/finally` so a preview failure preserves the save confirmation and resets `loading` in `finally`.
-  - In `DesignsPage.jsx` (`handleUpdate`), wrapped the operation in an outer `try/finally { setLoading(false) }`, executed `updateDesign(selectedId, data)` first (returning early on failure), immediately set the success message, and then ran `getDesigns()` and `previewDesign(data)` sequentially while collecting any refresh failures in a `refreshErrors` array to display a single combined error message.
-- **Learning:** Concurrent `Promise.all()` is unsuitable when one call mutates persistent state and another performs a non-critical UI refresh; error handling must accurately communicate partial success.
+- **Task:** Represent `lift_height` (maximum hook travel) in the Front Elevation drawing.
+- **What AI generated:** First placed the hook using `lift_height × SCALE` with a `Max Lift Height (Schematic)` dimension line, and later used a shorter `Maximum Lift Height: X.X m` label.
+- **Issue I found:** Maximum hook travel is not the same as the physical girder-to-hook distance, so scaling the hook from `lift_height` or drawing a dimension line could imply a verified installation clearance.
+- **How I reviewed it:** Flagged this during plan review and Step 3 code review, and requested a test confirming `lift_height` does not affect scale or hook position.
+- **Fix applied:** Used a fixed drawing-only offset (`EST_ILLUSTRATIVE_ROPE_LENGTH_M = 1.50`) for the hook and updated the label to `Maximum Lift Height: X.X m (input only; not shown geometrically)`. Confirmed via test (`lift_height=2.0` vs `15.0`) that scale and hook coordinates stay unchanged.
+- **Takeaway:** AI can mix up domain inputs with visual layout coordinates; human review is needed to keep schematic estimates honest.
 
 ---
 
-## 5. Resolving `DesignResponse` Schema Assumptions and UI Redesign Compatibility Issues
+## 3. Shared Orthographic Scale & Unrounded Scale Output (`backend/services/geometry_engine.py`)
 
-- **Task:** Integrating `frontend/src/pages/DesignsPage.jsx` with the backend API and auditing the UI redesign files (`App.css`, `CraneForm.jsx`, `CraneDrawing.jsx`).
-- **Initial AI contribution:** During F12 (`DesignsPage.jsx`), the task assumptions expected `DesignResponse` to nest parameters under a `parameters` key (mirroring the SQLite column), whereas `design_service.py` returned a flat response. During the UI redesign review, proposed files included unused symbols (`useRef`, `label`, `scale`), button labels (`Generate` / `Save`) that did not match `DesignsPage.jsx` helper text (`Generate Drawing` / `Save Design`), hardcoded `"Out of range"` text that masked `"Enter a valid number."`, and missing padding for `.helper-text` inside `.panel`.
-- **Issue identified:** Reading `design.parameters` would have failed to populate the edit form, and the UI redesign regressions caused misleading `NaN` validation messages and misaligned helper text in the Edit Design panel.
-- **Human review:** Cross-checked `design_service.py` and `schemas.py` before writing `extractFormValues(design)`, audited each proposed UI file against existing JSX/CSS, and inspected a live browser screenshot of the Saved Designs edit panel.
-- **Correction:**
-  - Implemented `extractFormValues(design)` in `DesignsPage.jsx` using the flat top-level `DesignResponse` fields.
-  - Removed unused imports/variables (`useRef` and `label` in `CraneForm.jsx`; `scale` in `CraneDrawing.jsx`).
-  - Aligned `CraneForm.jsx` button labels (`Generate Drawing` and `Save Design`) with `DesignsPage.jsx` helper text.
-  - Updated numeric error rendering in `CraneForm.jsx` to display `errors[key]` when it equals `'Enter a valid number.'` and `Out of range (${min}–${max} ${unit})` otherwise.
-  - Added `.panel > .helper-text { padding: 0.75rem 1.5rem 0; }` in `App.css` to align the Edit Design helper text.
-- **Learning:** Verifying actual API response shapes and reviewing redesigned components against existing pages and live screenshots prevents silent integration mismatches and subtle UX regressions.
+- **Task:** Fit both Front Elevation and Top View inside fixed SVG canvases across all valid inputs.
+- **What AI generated:** Initially used two separate scales (`scale_front` and `scale_top`), and later rounded `common_scale_px_per_m` to 2 decimal places in the API response.
+- **Issue I found:** Separate scales rendered the same crane at different proportions in Front vs Top View (`86.15` vs `150.00 px/m` at `span = 3.0 m`), and rounding `common_scale_px_per_m` hid the exact scale used in coordinate math.
+- **How I reviewed it:** Reviewed the boundary calculations in the plan and checked the Step 3 `geometry_engine.py` output.
+- **Fix applied:** Used `common_scale = min(front_width_scale, front_height_scale, top_width_scale, top_height_scale)` for both views and returned the unrounded float in `common_scale_px_per_m` (keeping 1-decimal `_r()` rounding for SVG pixels). Verified on standard (`10 m`), min (`3 m`), and max (`30 m`) cases.
+- **Takeaway:** Orthographic views need one shared scale, and returned metadata should match the actual calculation precision.
+
+---
+
+## 4. `Promise.all()` Failure Handling in Save & Update Flows (`HomePage.jsx`, `DesignsPage.jsx`)
+
+- **Task:** Save/update a design in SQLite and refresh the drawing (and list on the Saved Designs page).
+- **What AI generated:** Used `Promise.all([createDesign(data), previewDesign(data)])` in `HomePage.jsx`, and in an earlier `DesignsPage.jsx` revision used separate `setError()` calls without an outer `finally`.
+- **Issue I found:** With `Promise.all()`, a failed preview after a successful save rejected the whole call—making it look like the save failed and risking duplicate records. Separate `setError()` calls could also overwrite earlier refresh errors, and missing `finally` risked leaving `loading` stuck at `true`.
+- **How I reviewed it:** Reviewed `handleSave` (F11) and `handleUpdate` (F12) control flow before approving.
+- **Fix applied:** Switched both to sequential calls:
+  - `HomePage.jsx`: runs `createDesign(data)` first (returning early on failure), sets the success banner, then refreshes `previewDesign(data)` in its own `try/catch/finally`.
+  - `DesignsPage.jsx`: wraps `handleUpdate` in `try/finally { setLoading(false) }`, runs `updateDesign()` first, then runs `getDesigns()` and `previewDesign()` while collecting any refresh failures in `refreshErrors`.
+- **Takeaway:** Never pair a database write and a non-critical UI refresh inside `Promise.all()`; partial failures need accurate user feedback.
+
+---
+
+## 5. `DesignResponse` Shape & UI Redesign Compatibility (`DesignsPage.jsx`, `CraneForm.jsx`, `CraneDrawing.jsx`, `App.css`)
+
+- **Task:** Wire `DesignsPage.jsx` to the backend and review the UI redesign files.
+- **What AI generated:** Initial F12 assumptions expected `design.parameters` to be nested, and the UI redesign drafts included unused symbols (`useRef`, `label`, `scale`), mismatched button labels (`Generate` / `Save`), hardcoded `"Out of range"` text hiding `"Enter a valid number."`, and missing padding on `.panel > .helper-text`.
+- **Issue I found:** Reading `design.parameters` would fail because `DesignResponse` is flat, and the UI redesign had small UX/lint regressions visible in code review and in the Saved Designs browser screenshot.
+- **How I reviewed it:** Cross-checked `design_service.py`/`schemas.py`, audited each redesigned file against existing pages, and inspected the live Saved Designs Edit panel.
+- **Fix applied:** Mapped flat `DesignResponse` fields in `extractFormValues()`, removed unused imports/variables, matched button labels (`Generate Drawing` / `Save Design`) to `DesignsPage.jsx` helper text, restored `'Enter a valid number.'` display in `CraneForm.jsx`, and added `.panel > .helper-text { padding: 0.75rem 1.5rem 0; }` in `App.css`.
+- **Takeaway:** Always verify API response shapes and check redesigned UI components against live screenshots and existing page text.
