@@ -456,7 +456,7 @@ python --version
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/laiba09Saleem/parametric-overhead-crane-generator.git
 cd parametric-overhead-crane-generator
 ```
 
