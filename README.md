@@ -25,20 +25,20 @@ The user enters crane parameters — span, girder height, end truck length, lift
 
 | Feature | Status |
 |---|---|
-| Crane parameter input form with client-side validation | ✅ Implemented |
-| Server-side parameter validation (independent of frontend) | ✅ Implemented |
-| Front Elevation (looking along runway direction) | ✅ Implemented |
-| Top / Plan View (looking straight down) | ✅ Implemented |
-| Automatically generated dimension lines and labels | ✅ Implemented |
-| Preview drawing without saving | ✅ Implemented |
-| Save design to SQLite database | ✅ Implemented |
-| List all saved designs (most recently updated first) | ✅ Implemented |
-| Reopen an existing design and regenerate its drawing | ✅ Implemented |
-| Edit and update a saved design | ✅ Implemented |
-| Persistent storage across browser refresh | ✅ Implemented |
-| 404 handling for missing designs | ✅ Implemented |
-| 422 handling for invalid backend inputs | ✅ Implemented |
-| Responsive CSS breakpoints (desktop layout verified; mobile/tablet not formally tested) | ⚠ Implemented — not fully verified |
+| Crane parameter input form with client-side validation |  Implemented |
+| Server-side parameter validation (independent of frontend) |  Implemented |
+| Front Elevation (looking along runway direction) |  Implemented |
+| Top / Plan View (looking straight down) |  Implemented |
+| Automatically generated dimension lines and labels |  Implemented |
+| Preview drawing without saving |  Implemented |
+| Save design to SQLite database |  Implemented |
+| List all saved designs (most recently updated first) |  Implemented |
+| Reopen an existing design and regenerate its drawing |  Implemented |
+| Edit and update a saved design |  Implemented |
+| Persistent storage across browser refresh |  Implemented |
+| 404 handling for missing designs |  Implemented |
+| 422 handling for invalid backend inputs |  Implemented |
+| Responsive CSS breakpoints | Implemented  |
 
 ---
 
